@@ -1,64 +1,63 @@
-var Campground = require("../models/campground");
-var Comment = require("../models/comment");
+var express = require("express");
+var router = express.Router();
+var passport  = require("passport");
+var User    = require("../models/user");
 
 
-var middlewareObj = {};
 
-middlewareObj.checkCampgroundOwnership = function(req,res,next){
-    //is user logged in?
-   if(req.isAuthenticated()){  
-       Campground.findById(req.params.id,function(err,foundCampground){
-           if(err){
-               res.redirect("back");
-           } else{
-               //does user own the campground
-               // console.log(foundCampground.author.id);//mongoose object id
-               // console.log(req.user._id);//string   ,.hence string not(===) mongoose object
-               if(foundCampground.author.id.equals(req.user._id)){
-                   next( );
-               } else{
-                   req.flash("error","You don't have the permission to do that "); 
-                   res.redirect("back");
-               }  
-           }
-       }); 
-   } else {
-         req.flash("error","yOu need to be logged in to do that "); 
-         res.redirect("back");
-   }    
-}
 
-middlewareObj.checkCommentOwnership = function(req,res,next){
-    //is user logged in?
-   if(req.isAuthenticated()){  
-       Comment.findById(req.params.comment_id,function(err,foundComment){
-           if(err){
-               req.flash("error","Campground not found"); 
-               res.redirect("back");
-           } else{
-               //does user own the comment
-               // console.log(foundCampground.author.id);//mongoose object id
-               // console.log(req.user._id);//string   ,.hence string not(===) mongoose object
-               if(foundComment.author.id.equals(req.user._id)){
-                   next( );
-                } else{
-                   req.flash("error","You don't have the permission to do that");
-                   res.redirect("back");
-               }  
-           }
-       }); 
-   } else {
-       req.flash("error","You need to be logged in to do that");
-      res.redirect("back");
-   }    
-}
+//root route
+router.get("/",function(req,res){
+    res.render("landing");
+});
 
-middlewareObj.isLoggedIn = function(req,res,next){
-    if(req.isAuthenticated()){
-        return next();
-    }
-    req.flash("error","You need to be logged in to do that");
-    res.redirect("/login");
-}
 
-module.exports = middlewareObj;
+ 
+//AUTH ROUTES
+
+//show register form
+router.get("/register",function(req,res){
+    res.render("register");
+});
+
+//handle sign up logic
+router.post("/register",function(req,res){
+    var newUser = new User({username: req.body.username});
+    User.register(newUser,req.body.password, function(err,user){
+        if(err){
+            req.flash("error",err.message);
+            return res.redirect("register");
+        }
+        passport.authenticate("local")(req,res,function(){
+            req.flash("success","Welcome to YelpCamp " + user.username);
+            res.redirect("campgrounds");
+        }); 
+    });
+});
+
+//show login form
+router.get("/login",function(req,res){
+    res.render("login");
+});
+
+//handle login logic
+//looks like app.post("/login",middleware,callback)
+router.post("/login", passport.authenticate("local",
+{
+    successRedirect: "/campgrounds",
+    failureRedirect: "/login"
+}) ,function(req,res){
+    
+});
+
+//logout route
+router.get("/logout",function(req,res){
+     req.logout();
+     req.flash("success","Logged you Out!");
+     res.redirect("/campgrounds");
+});
+
+
+
+
+module.exports = router;
